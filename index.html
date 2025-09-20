@@ -303,12 +303,9 @@
 
   <script src="./ffmpeg/ffmpeg.min.js"></script>
   <script>
-    const FFMPEG_VERSION = '0.12.15';
-    const CORE_VERSION = '0.12.10';
-    const assetRoot = new URL('ffmpeg/', window.location.href);
-    const WORKER_URL = new URL('814.ffmpeg.js', assetRoot).href;
-    const CORE_JS_URL = new URL('ffmpeg-core.js', assetRoot).href;
-    const CORE_WASM_URL = new URL('ffmpeg-core.wasm', assetRoot).href;
+    const LOCAL_WORKER_URL = new URL('ffmpeg/814.ffmpeg.js', window.location.href).href;
+    const CORE_JS_URL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.js';
+    const CORE_WASM_URL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd/ffmpeg-core.wasm';
 
     const { FFmpeg } = FFmpegWASM;
 
@@ -423,7 +420,7 @@
         progress.value = value;
       });
 
-      await ffmpeg.load({ coreURL: CORE_JS_URL, wasmURL: CORE_WASM_URL, workerURL: WORKER_URL });
+      await ffmpeg.load({ coreURL: CORE_JS_URL, wasmURL: CORE_WASM_URL, workerURL: LOCAL_WORKER_URL });
       ffmpegReady = true;
       setStatus('FFmpeg loaded. Ready to compress!');
       progress.value = 100;
