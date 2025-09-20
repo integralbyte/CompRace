@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>In-Browser Video Compressor</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f7fb;
+      --fg: #16181d;
+      --accent: #3b82f6;
+      --border: #d0d7e2;
+      --card: #ffffffd9;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: linear-gradient(160deg, var(--bg), #dde6ff);
+      color: var(--fg);
+      display: flex;
+      justify-content: center;
+      padding: 32px 16px 48px;
+    }
+
+    main {
+      width: min(960px, 100%);
+      background: var(--card);
+      backdrop-filter: blur(18px);
+      padding: 32px clamp(20px, 4vw, 48px);
+      border-radius: 24px;
+      box-shadow: 0 18px 40px -24px rgba(15, 23, 42, 0.4);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(1.8rem, 4vw, 2.6rem);
+      letter-spacing: -0.02em;
+    }
+
+    p.lead {
+      margin: 0 0 24px;
+      color: rgba(15, 23, 42, 0.72);
+      font-size: 1.05rem;
+      line-height: 1.6;
+    }
+
+    form {
+      display: grid;
+      gap: 20px;
+      margin-bottom: 28px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    input[type="file"],
+    select,
+    input[type="number"],
+    input[type="text"],
+    button,
+    textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 1rem;
+      background: rgba(255, 255, 255, 0.9);
+      color: inherit;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      transition: transform 120ms ease, box-shadow 120ms ease;
+      box-shadow: 0 12px 24px -16px rgba(37, 99, 235, 0.6);
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 32px -18px rgba(37, 99, 235, 0.55);
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.65;
+    }
+
+    a.button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 20px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 12px 24px -16px rgba(37, 99, 235, 0.6);
+      transition: transform 120ms ease, box-shadow 120ms ease;
+    }
+
+    a.button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 32px -18px rgba(37, 99, 235, 0.55);
+    }
+
+    a.button:focus-visible {
+      outline: 3px solid rgba(59, 130, 246, 0.5);
+      outline-offset: 2px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .toggles {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.06);
+      font-size: 0.95rem;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle input {
+      width: 18px;
+      height: 18px;
+    }
+
+    .inline {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .inline span.value {
+      min-width: 42px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status-panel {
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      display: grid;
+      gap: 14px;
+    }
+
+    progress {
+      width: 100%;
+      height: 14px;
+      appearance: none;
+      border: none;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(148, 163, 184, 0.25);
+    }
+
+    progress::-webkit-progress-bar {
+      background: rgba(148, 163, 184, 0.25);
+      border-radius: 999px;
+    }
+
+    progress::-webkit-progress-value {
+      background: var(--accent);
+      border-radius: 999px;
+    }
+
+    progress::-moz-progress-bar {
+      background: var(--accent);
+      border-radius: 999px;
+    }
+
+    .status-text {
+      font-weight: 600;
+    }
+
+    .output-card {
+      margin-top: 32px;
+      background: rgba(15, 23, 42, 0.05);
+      border-radius: 16px;
+      padding: 24px;
+      display: grid;
+      gap: 16px;
+    }
+
+    video {
+      width: 100%;
+      border-radius: 14px;
+      background: #000;
+    }
+
+    .log {
+      font-family: "SFMono-Regular", "Menlo", "Consolas", monospace;
+      font-size: 0.9rem;
+      max-height: 160px;
+      overflow-y: auto;
+      padding: 16px;
+      background: rgba(15, 23, 42, 0.05);
+      border-radius: 12px;
+      white-space: pre-wrap;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    footer {
+      margin-top: 36px;
+      font-size: 0.9rem;
+      color: rgba(15, 23, 42, 0.6);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>ComprAce Video Compressor</h1>
+    <form id="compress-form">
+      <div>
+        <label for="source">Source video</label>
+        <input id="source" name="source" type="file" accept="video/*" required />
+      </div>
+
+      <div class="grid">
+        <div>
+          <label for="fps">Target frame rate (fps)</label>
+          <input id="fps" name="fps" type="number" min="5" max="60" step="1" value="15" />
+          <small>Lower frame rates encode faster; keep between 5 and 60&nbsp;fps.</small>
+        </div>
+
+        <div>
+          <label for="target-size">Target max file size (MB)</label>
+          <input id="target-size" name="target-size" type="number" min="1" step="0.1" placeholder="Optional" />
+          <small>Leave blank to skip. If set, bitrate is estimated to stay under this size.</small>
+        </div>
+      </div>
+
+      <div class="toggles">
+        <label class="toggle">
+          <input id="keep-audio" type="checkbox" />
+          <span>Keep audio track (slower)</span>
+        </label>
+        <label class="toggle">
+          <input id="auto-download" type="checkbox" />
+          <span>Auto-download when complete</span>
+        </label>
+      </div>
+
+      <button id="compress" type="button">Compress video</button>
+    </form>
+
+    <section id="status-card" class="status-panel hidden" aria-live="polite">
+      <div class="status-text" id="status-text">Idle</div>
+      <progress id="progress" max="100" value="0"></progress>
+      <div class="log" id="log"></div>
+    </section>
+
+    <section id="output" class="output-card hidden">
+      <h2>Compressed video</h2>
+      <video id="preview" controls></video>
+      <div class="inline">
+        <a id="download" class="button" download>Download compressed file</a>
+        <span id="size-info"></span>
+      </div>
+    </section>
+
+    <footer>
+      Uses FFmpeg.wasm (MIT/GPL) directly in the browser. Close the tab to clear generated files.
+    </footer>
+  </main>
+
+  <script src="./ffmpeg/ffmpeg.min.js"></script>
+  <script>
+    const FFMPEG_VERSION = '0.12.15';
+    const CORE_VERSION = '0.12.10';
+    const assetRoot = new URL('ffmpeg/', window.location.href);
+    const WORKER_URL = new URL('814.ffmpeg.js', assetRoot).href;
+    const CORE_JS_URL = new URL('ffmpeg-core.js', assetRoot).href;
+    const CORE_WASM_URL = new URL('ffmpeg-core.wasm', assetRoot).href;
+
+    const { FFmpeg } = FFmpegWASM;
+
+    const fetchFile = async (input) => {
+      if (typeof input === 'string' || input instanceof URL) {
+        const response = await fetch(input);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch ${input}: ${response.status}`);
+        }
+        return new Uint8Array(await response.arrayBuffer());
+      }
+
+      if (input instanceof File || input instanceof Blob) {
+        return new Uint8Array(await input.arrayBuffer());
+      }
+
+      if (input instanceof ArrayBuffer) {
+        return new Uint8Array(input);
+      }
+
+      if (ArrayBuffer.isView(input)) {
+        return new Uint8Array(input.buffer);
+      }
+
+      if (typeof input === 'object' && input?.data instanceof ArrayBuffer) {
+        return new Uint8Array(input.data);
+      }
+
+      throw new Error('Unsupported input type for fetchFile');
+    };
+
+    const ffmpeg = new FFmpeg();
+    let ffmpegReady = false;
+
+    const form = document.getElementById('compress-form');
+    const statusCard = document.getElementById('status-card');
+    const statusText = document.getElementById('status-text');
+    const progress = document.getElementById('progress');
+    const log = document.getElementById('log');
+    const outputSection = document.getElementById('output');
+    const preview = document.getElementById('preview');
+    const downloadLink = document.getElementById('download');
+    const sizeInfo = document.getElementById('size-info');
+    const compressButton = document.getElementById('compress');
+    const fpsInput = document.getElementById('fps');
+    const targetSizeInput = document.getElementById('target-size');
+    const keepAudioInput = document.getElementById('keep-audio');
+    const autoDownloadInput = document.getElementById('auto-download');
+
+    let activeBlobUrl = null;
+
+    const clampFpsInput = () => {
+      const value = Number(fpsInput.value);
+      if (Number.isFinite(value)) {
+        const clamped = Math.min(60, Math.max(5, Math.round(value)));
+        if (clamped !== value) {
+          fpsInput.value = clamped;
+        }
+      } else {
+        fpsInput.value = 15;
+      }
+    };
+
+    fpsInput.addEventListener('change', clampFpsInput);
+    fpsInput.addEventListener('input', clampFpsInput);
+    clampFpsInput();
+
+    const setStatus = (text) => {
+      statusText.textContent = text;
+      if (statusCard.classList.contains('hidden')) {
+        statusCard.classList.remove('hidden');
+      }
+    };
+
+    const appendLog = (message) => {
+      log.textContent = `${log.textContent}${message}\n`;
+      log.scrollTop = log.scrollHeight;
+    };
+
+    const resetOutput = () => {
+      if (activeBlobUrl) {
+        URL.revokeObjectURL(activeBlobUrl);
+        activeBlobUrl = null;
+      }
+      progress.value = 0;
+      log.textContent = '';
+      statusText.textContent = 'Idle';
+      statusCard.classList.add('hidden');
+      outputSection.classList.add('hidden');
+      preview.removeAttribute('src');
+      preview.load();
+      downloadLink.removeAttribute('href');
+      downloadLink.removeAttribute('download');
+      sizeInfo.textContent = '';
+    };
+
+    const loadFFmpeg = async () => {
+      if (ffmpegReady) {
+        return;
+      }
+
+      setStatus('Loading FFmpeg components...');
+      progress.value = 5;
+
+      if (window.location.protocol === 'file:') {
+        appendLog('Tip: some browsers restrict workers on file:// URLs. If loading fails, serve this folder via a local web server.');
+      }
+
+      ffmpeg.on('log', ({ message }) => appendLog(message));
+      ffmpeg.on('progress', ({ progress: ratio }) => {
+        const value = Math.min(100, Math.round(ratio * 100));
+        progress.value = value;
+      });
+
+      await ffmpeg.load({ coreURL: CORE_JS_URL, wasmURL: CORE_WASM_URL, workerURL: WORKER_URL });
+      ffmpegReady = true;
+      setStatus('FFmpeg loaded. Ready to compress!');
+      progress.value = 100;
+    };
+
+    const humanFileSize = (bytes) => {
+      if (!bytes) return '0 B';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+      const value = bytes / Math.pow(1024, exponent);
+      return `${value.toFixed(exponent === 0 ? 0 : 1)} ${units[exponent]}`;
+    };
+
+    const readVideoDuration = (file) => new Promise((resolve) => {
+      try {
+        const tempUrl = URL.createObjectURL(file);
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        const cleanup = () => {
+          URL.revokeObjectURL(tempUrl);
+          video.removeAttribute('src');
+          video.load();
+        };
+        video.addEventListener('loadedmetadata', () => {
+          const duration = Number.isFinite(video.duration) ? video.duration : 0;
+          cleanup();
+          resolve(duration);
+        }, { once: true });
+        video.addEventListener('error', () => {
+          cleanup();
+          resolve(0);
+        }, { once: true });
+        video.src = tempUrl;
+      } catch (error) {
+        resolve(0);
+      }
+    });
+
+    const handleCompression = async () => {
+      if (!form.reportValidity()) {
+        return;
+      }
+
+      const file = document.getElementById('source').files?.[0];
+      if (!file) {
+        alert('Choose a video file to compress.');
+        return;
+      }
+
+      resetOutput();
+      compressButton.disabled = true;
+      setStatus('Preparing FFmpeg...');
+
+      try {
+        await loadFFmpeg();
+        setStatus('Loading video into FFmpeg workspace...');
+
+        const inputName = file.name;
+        const inputData = await fetchFile(file);
+        await ffmpeg.writeFile(inputName, inputData);
+
+        const prefix = 'compressed-';
+        const outputName = inputName.startsWith(prefix) ? inputName : `${prefix}${inputName}`;
+
+        const fpsValue = Number(fpsInput.value) || 15;
+        const keepAudio = keepAudioInput.checked;
+        const audioBitrateKbps = keepAudio ? 96 : 0;
+        const targetSizeMb = parseFloat(targetSizeInput.value);
+        const enforceTargetSize = !Number.isNaN(targetSizeMb) && targetSizeMb > 0;
+        let targetTotalBitrateKbps = null;
+
+        if (enforceTargetSize) {
+          const durationSeconds = await readVideoDuration(file);
+          if (durationSeconds > 0) {
+            const targetBits = targetSizeMb * 1024 * 1024 * 8;
+            targetTotalBitrateKbps = Math.max(audioBitrateKbps + 64, Math.floor(targetBits / durationSeconds / 1000));
+            appendLog(`Target total bitrate ≈ ${targetTotalBitrateKbps} kbps for ~${durationSeconds.toFixed(1)}s video`);
+          } else {
+            appendLog('Unable to read video duration; skipping target size constraint.');
+          }
+        }
+
+        const filters = [];
+        if (Number.isFinite(fpsValue) && fpsValue > 0) {
+          filters.push(`fps=${Math.min(60, Math.max(5, Math.round(fpsValue)))}`);
+        }
+
+        const args = [
+          '-i', inputName,
+        ];
+
+        if (filters.length) {
+          args.push('-vf', filters.join(','));
+        }
+
+        args.push(
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast',
+          '-tune', 'zerolatency',
+          '-movflags', 'faststart',
+          '-pix_fmt', 'yuv420p',
+          '-g', '30'
+        );
+
+        if (keepAudio) {
+          args.push('-c:a', 'aac', '-b:a', `${audioBitrateKbps}k`, '-ac', '2');
+        } else {
+          args.push('-an');
+        }
+
+        if (targetTotalBitrateKbps) {
+          const videoBitrateKbps = Math.max(64, targetTotalBitrateKbps - audioBitrateKbps);
+          const bufsize = Math.max(128, videoBitrateKbps * 2);
+          args.push('-b:v', `${videoBitrateKbps}k`, '-maxrate', `${videoBitrateKbps}k`, '-bufsize', `${bufsize}k`);
+          appendLog(`Using video bitrate ≈ ${videoBitrateKbps} kbps${keepAudio ? ' plus audio' : ''}.`);
+        } else {
+          args.push('-crf', '40');
+        }
+
+        args.push(outputName);
+
+        setStatus('Compressing (speed-first profile)...');
+        progress.value = 2;
+
+        await ffmpeg.exec(args);
+
+        const outputData = await ffmpeg.readFile(outputName);
+        const blob = new Blob([outputData.buffer], { type: 'video/mp4' });
+        const url = URL.createObjectURL(blob);
+
+        preview.src = url;
+        activeBlobUrl = url;
+        preview.load();
+        downloadLink.href = url;
+        downloadLink.download = outputName;
+
+        if (autoDownloadInput.checked) {
+          setTimeout(() => downloadLink.click(), 100);
+        }
+
+        sizeInfo.textContent = `Original: ${humanFileSize(file.size)} — Compressed: ${humanFileSize(blob.size)}${keepAudio ? ' (audio kept)' : ' (muted)'}`;
+        outputSection.classList.remove('hidden');
+        setStatus('Compression complete. Preview or download your file below.');
+        progress.value = 100;
+
+        // Cleanup FFmpeg FS to free memory.
+        await ffmpeg.deleteFile(inputName).catch(() => {});
+        await ffmpeg.deleteFile(outputName).catch(() => {});
+      } catch (error) {
+        console.error(error);
+        appendLog(`\nError: ${error.message || error}`);
+        setStatus('Something went wrong. Check the log below for details.');
+      } finally {
+        compressButton.disabled = false;
+      }
+    };
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      handleCompression();
+    });
+
+    compressButton.addEventListener('click', () => {
+      handleCompression();
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (ffmpegReady) {
+        ffmpeg.terminate();
+      }
+    });
+  </script>
+</body>
+</html>
